@@ -43,17 +43,14 @@ x_max = ${xMax}
 num_points = ${numPoints}
 
 try:
-    # Preprocess expression
     expr_str = expr_str.replace('π', 'pi').replace('e', 'E')
     expr_str = expr_str.replace('÷', '/').replace('×', '*').replace('−', '-')
     expr_str = expr_str.replace('^', '**')
     expr_str = expr_str.replace('³√(', 'cbrt(').replace('²√(', 'sqrt(').replace('√(', 'sqrt(')
     expr_str = expr_str.replace('²', '**2').replace('³', '**3')
     
-    # Parse expression
     expr_parsed = parse_expr(expr_str)
     
-    # Generate points
     points = []
     step = (x_max - x_min) / num_points
     
@@ -88,24 +85,19 @@ async function solveEquation(expr) {
 expr_str = """${expr}"""
 
 try:
-    # Preprocess
     expr_str = expr_str.replace('π', 'pi').replace('e', 'E')
     expr_str = expr_str.replace('÷', '/').replace('×', '*').replace('−', '-')
     expr_str = expr_str.replace('^', '**')
     expr_str = expr_str.replace('³√(', 'cbrt(').replace('²√(', 'sqrt(').replace('√(', 'sqrt(')
     expr_str = expr_str.replace('²', '**2').replace('³', '**3')
     
-    # Parse equation
     if '=' in expr_str:
         lhs, rhs = expr_str.split('=')
         equation = parse_expr(lhs) - parse_expr(rhs)
     else:
         equation = parse_expr(expr_str)
     
-    # Solve
     solutions = solve(equation, x)
-    
-    # Convert to strings
     solutions_str = [str(sol).replace('sqrt', '√') for sol in solutions]
     
     json.dumps(solutions_str)
@@ -121,11 +113,9 @@ except Exception as e:
     }
 }
 
-// Expose functions to Flutter
 window.initSymPy = initSymPy;
 window.evaluateExpression = evaluateExpression;
 window.solveEquation = solveEquation;
 </script>
 </body>
 </html>
-
