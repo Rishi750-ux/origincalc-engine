@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SymPy Bridge</title>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+<script type="text/javascript">
+let pyodide = null;
+let sympyReady = false;
+
+async function initSymPy() {
+    if (sympyReady) return "ready";
+    
+    try {
+        pyodide = await loadPyodide();
+        await pyodide.loadPackage("sympy");
+        
+        await pyodide.runPythonAsync(`
+from sympy import *
+from sympy.parsing.sympy_parser import parse_expr
+import json
+
+x, y, z = symbols('x y z')
+        `);
+        
+        sympyReady = true;
+        return "ready";
+    } catch (error) {
+        return "error: " + error.message;
+    }
+}
+
+async function evaluateExpression(expr, xMin, xMax, numPoints) {
+    if (!sympyReady) await initSymPy();
+    
+    const pythonCode = `
+expr_str = """${expr}"""
+x_min = ${xMin}
+x_max = ${xMax}
+num_points = ${numPoints}
+
+try:
+    # Preprocess expression
+    expr_str = expr_str.replace('π', 'pi').replace('e', 'E')
+    expr_str = expr_str.replace('÷', '/').replace('×', '*').replace('−', '-')
+    expr_str = expr_str.replace('^', '**')
+    expr_str = expr_str.replace('³√(', 'cbrt(').replace('²√(', 'sqrt(').replace('√(', 'sqrt(')
+    expr_str = expr_str.replace('²', '**2').replace('³', '**3')
+    
+    # Parse expression
+    expr_parsed = parse_expr(expr_str)
+    
+    # Generate points
+    points = []
+    step = (x_max - x_min) / num_points
+    
+    for i in range(num_points + 1):
+        x_val = x_min + i * step
+        try:
+            y_val = complex(expr_parsed.subs(x, x_val).evalf())
+            if y_val.imag == 0:
+                y_real = float(y_val.real)
+                if abs(y_real) < 1e10:
+                    points.append([x_val, y_real])
+        except:
+            pass
+    
+    json.dumps(points)
+except Exception as e:
+    json.dumps([])
+    `;
+    
+    try {
+        const result = await pyodide.runPythonAsync(pythonCode);
+        return result;
+    } catch (error) {
+        return "[]";
+    }
+}
+
+async function solveEquation(expr) {
+    if (!sympyReady) await initSymPy();
+    
+    const pythonCode = `
+expr_str = """${expr}"""
+
+try:
+    # Preprocess
+    expr_str = expr_str.replace('π', 'pi').replace('e', 'E')
+    expr_str = expr_str.replace('÷', '/').replace('×', '*').replace('−', '-')
+    expr_str = expr_str.replace('^', '**')
+    expr_str = expr_str.replace('³√(', 'cbrt(').replace('²√(', 'sqrt(').replace('√(', 'sqrt(')
+    expr_str = expr_str.replace('²', '**2').replace('³', '**3')
+    
+    # Parse equation
+    if '=' in expr_str:
+        lhs, rhs = expr_str.split('=')
+        equation = parse_expr(lhs) - parse_expr(rhs)
+    else:
+        equation = parse_expr(expr_str)
+    
+    # Solve
+    solutions = solve(equation, x)
+    
+    # Convert to strings
+    solutions_str = [str(sol).replace('sqrt', '√') for sol in solutions]
+    
+    json.dumps(solutions_str)
+except Exception as e:
+    json.dumps([])
+    `;
+    
+    try {
+        const result = await pyodide.runPythonAsync(pythonCode);
+        return result;
+    } catch (error) {
+        return "[]";
+    }
+}
+
+// Expose functions to Flutter
+window.initSymPy = initSymPy;
+window.evaluateExpression = evaluateExpression;
+window.solveEquation = solveEquation;
+</script>
+</body>
+</html>
+
